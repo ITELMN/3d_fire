@@ -46,7 +46,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
       constructor(w: number, h: number) {
         // Fire located slightly higher up visually to be "behind" the extinguisher
         this.x = w / 2 + (Math.random() - 0.5) * 120; 
-        this.y = h / 2 - 80 + (Math.random() * 50); 
+        this.y = h / 2 - 100 + (Math.random() * 50); // Moved slightly up
         this.vx = (Math.random() - 0.5) * 2;
         this.vy = -Math.random() * 7 - 3;
         this.life = 1.0;
@@ -83,32 +83,29 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
       gravity: number;
 
       constructor(w: number, h: number, aimFactor: number) {
-        // ALIGNED WITH EXTINGUISHER MODEL NOZZLE (Left Side)
-        // Extinguisher Model is centered. 
-        // Scale is approx 0.75.
-        // Hose nozzle tip when lifted (Aim/Squeeze) is roughly:
-        // x: Center - 100px (visually tuned for the new hose rotation)
-        // y: Center + 20px
+        // ALIGNED WITH NEW SMALLER EXTINGUISHER MODEL (Scale 0.6)
+        // Center is w/2, h/2
+        // Hose tip when aimed is roughly to the left and slightly up relative to center
         
-        const nozzleBaseX = w / 2 - 100 + (aimFactor * 20); 
-        const nozzleBaseY = h / 2 + 20;
+        const nozzleBaseX = w / 2 - 70 + (aimFactor * 10); 
+        const nozzleBaseY = h / 2 - 40; // Higher up as nozzle points up
 
         this.x = nozzleBaseX;
         this.y = nozzleBaseY;
         
         // Target is the fire base + aim variance
-        const targetX = w / 2 + (aimFactor * 200); 
-        const targetY = h / 2 - 60; // Fire base
+        const targetX = w / 2 + (aimFactor * 250); 
+        const targetY = h / 2 - 80; // Fire base
 
         const angle = Math.atan2(targetY - this.y, targetX - this.x);
-        const force = 28 + Math.random() * 8; // Faster stream
+        const force = 22 + Math.random() * 5; 
 
         this.vx = Math.cos(angle) * force;
         this.vy = Math.sin(angle) * force;
         
-        this.gravity = 0.25;
+        this.gravity = 0.2;
         this.life = 1.0;
-        this.size = Math.random() * 12 + 8;
+        this.size = Math.random() * 10 + 6;
       }
 
       update() {
@@ -149,19 +146,19 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
         this.vx = (Math.random() - 0.5) * 3;
         this.vy = -Math.random() * 4 - 2;
         this.life = 1.0;
-        this.size = Math.random() * 30 + 15;
+        this.size = Math.random() * 40 + 20;
       }
 
       update() {
         this.x += this.vx;
         this.y += this.vy;
         this.life -= 0.02;
-        this.size += 1.5;
+        this.size += 1.0;
       }
 
       draw(c: CanvasRenderingContext2D) {
-        c.globalAlpha = this.life * 0.3;
-        c.fillStyle = '#cccccc'; // Lighter steam
+        c.globalAlpha = this.life * 0.4; // More visible
+        c.fillStyle = '#e2e8f0'; // Slate-200, more visible steam
         c.beginPath();
         c.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         c.fill();
@@ -180,7 +177,8 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 
       // 1. Spawn Fire
       if (localFireHealth > 0 && step !== SimulationStep.SUCCESS) {
-        const spawnRate = Math.floor((localFireHealth / 100) * 12) + 2;
+        // Fire intensity based on health
+        const spawnRate = Math.floor((localFireHealth / 100) * 15) + 3;
         for (let i = 0; i < spawnRate; i++) {
           fireParticles.push(new FireParticle(canvas.width, canvas.height));
         }
@@ -188,7 +186,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 
       // 2. Spawn Foam (More density)
       if (isSqueezing && localFireHealth > 0) {
-        for (let i = 0; i < 15; i++) {
+        for (let i = 0; i < 12; i++) {
           foamParticles.push(new FoamParticle(canvas.width, canvas.height, aimX));
         }
       }
@@ -212,7 +210,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
       // 5. Draw Foam & Check Collision
       let hitCount = 0;
       const fireCenterX = canvas.width / 2;
-      const fireCenterY = canvas.height / 2; // Approximate fire core
+      const fireCenterY = canvas.height / 2 - 60; // Approximate fire core visually
 
       for (let i = foamParticles.length - 1; i >= 0; i--) {
         const p = foamParticles[i];
@@ -220,12 +218,13 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
         p.draw(ctx);
         
         // Collision with fire
+        // Increased radius for easier hitting (140px)
         const dist = Math.hypot(p.x - fireCenterX, p.y - fireCenterY);
-        // Hit logic: Must be close to fire center
-        if (dist < 110 && p.life > 0.2) {
+        
+        if (dist < 140 && p.life > 0.1) {
             hitCount++;
-            // Spawn steam frequently on hit
-            if (Math.random() > 0.6) {
+            // Spawn steam
+            if (Math.random() > 0.7) {
                 steamParticles.push(new SteamParticle(p.x, p.y));
             }
         }
@@ -233,17 +232,16 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
         if (p.life <= 0) foamParticles.splice(i, 1);
       }
 
-      // 6. Logic
-      // Only effective if aiming near center (where fire is)
-      const isAimingAtFire = Math.abs(aimX) < 0.45; // Slightly wider forgiving window
+      // 6. Logic - purely physics based now
+      // If foam hits the fire area, it extinguishes.
       
-      if (hitCount > 0 && isSqueezing && isAimingAtFire) {
-         localFireHealth -= 1.2; // Faster extinguishing if hitting
+      if (hitCount > 0 && isSqueezing) {
+         localFireHealth -= 2.0; // Stronger effect per frame
          if (localFireHealth < 0) localFireHealth = 0;
          setFireHealth(localFireHealth);
       } else if (localFireHealth < 100 && localFireHealth > 0 && !isSqueezing) {
-         // Fire grows back slowly
-         localFireHealth += 0.05;
+         // Fire regrows if you stop
+         localFireHealth += 0.1;
          setFireHealth(localFireHealth);
       }
 

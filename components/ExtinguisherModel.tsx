@@ -21,13 +21,14 @@ const ExtinguisherModel: React.FC<ExtinguisherModelProps> = ({ aimX, isSqueezing
   const translateX = aimX * 20; // Move slightly
 
   // Zoom transforms for specific steps
-  // Reduce overall scale to 0.75 as requested (approx 15% smaller than 0.85)
-  let containerTransform = `translate(-50%, -50%) perspective(1000px) scale(0.75) rotateY(${rotationY}deg) translateX(${translateX}px)`;
+  // Scale reduced to 0.6 (Smaller)
+  // Translated slightly lower (-40%) so fire above is more visible
+  let containerTransform = `translate(-50%, -40%) perspective(1000px) scale(0.6) rotateY(${rotationY}deg) translateX(${translateX}px)`;
   
   if (isInspect) {
-    containerTransform = `translate(-50%, -30%) perspective(1000px) scale(2.0) translateY(50px)`;
+    containerTransform = `translate(-50%, -30%) perspective(1000px) scale(1.8) translateY(50px)`;
   } else if (isPull) {
-    containerTransform = `translate(-50%, -30%) perspective(1000px) scale(1.6) rotateY(-15deg) translateY(60px)`;
+    containerTransform = `translate(-50%, -30%) perspective(1000px) scale(1.5) rotateY(-15deg) translateY(60px)`;
   }
 
   return (
@@ -93,14 +94,14 @@ const ExtinguisherModel: React.FC<ExtinguisherModelProps> = ({ aimX, isSqueezing
       {/* --- HOSE --- */}
       {/* 
          ANIMATED HOSE:
-         When aiming/squeezing, rotate the hose container to make the nozzle point upwards/forwards
-         Pivot point is top-right of the hose container (where it connects to valve)
+         When aiming/squeezing, rotate to point nozzle up/right towards center screen (where fire is).
       */}
       <div 
         className="absolute bottom-[100px] left-[-40px] w-[140px] h-[300px] z-30 transition-transform duration-500 ease-out"
         style={{
            transformOrigin: '85px 20px', // Near the connection point to valve
-           transform: isAimingOrFiring ? 'rotate(-85deg) translate(-10px, -15px)' : 'rotate(0deg)'
+           // -75deg rotates it up and inwards enough to point at the fire visual center
+           transform: isAimingOrFiring ? 'rotate(-75deg) translate(-10px, -5px)' : 'rotate(0deg)'
         }}
       >
           <svg width="100%" height="100%" viewBox="0 0 100 200" preserveAspectRatio="none" className="drop-shadow-xl">
