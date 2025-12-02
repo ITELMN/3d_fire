@@ -45,12 +45,12 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 
       constructor(w: number, h: number) {
         // Fire located slightly higher up visually to be "behind" the extinguisher
-        this.x = w / 2 + (Math.random() - 0.5) * 150;
-        this.y = h / 2 - 50 + (Math.random() * 50); 
+        this.x = w / 2 + (Math.random() - 0.5) * 120; // Slightly narrower fire base
+        this.y = h / 2 - 80 + (Math.random() * 50); 
         this.vx = (Math.random() - 0.5) * 2;
-        this.vy = -Math.random() * 6 - 2;
+        this.vy = -Math.random() * 7 - 3;
         this.life = 1.0;
-        this.size = Math.random() * 30 + 20;
+        this.size = Math.random() * 35 + 15;
         this.baseColor = Math.random() * 40 + 10; // Orange/Yellow
         this.color = `hsla(${this.baseColor}, 100%, 50%,`;
       }
@@ -58,9 +58,9 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
       update() {
         this.x += this.vx;
         this.y += this.vy;
-        this.vx += (Math.random() - 0.5) * 0.1; 
-        this.life -= 0.025;
-        this.size -= 0.5;
+        this.vx += (Math.random() - 0.5) * 0.2; 
+        this.life -= 0.02;
+        this.size -= 0.4;
       }
 
       draw(c: CanvasRenderingContext2D) {
@@ -83,47 +83,82 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
       gravity: number;
 
       constructor(w: number, h: number, aimFactor: number) {
-        // Start from the nozzle position of the 3D model
-        // The model is centered, nozzle is roughly at center-right
-        // We simulate the nozzle moving with aimX
-        const nozzleBaseX = w / 2 + (aimFactor * 50) + 40; 
-        const nozzleBaseY = h / 2 + 100; 
+        // ALIGNED WITH EXTINGUISHER MODEL NOZZLE (Left Side)
+        // Model is centered. Hose is on the left.
+        // We estimate the nozzle tip position based on the transform in ExtinguisherModel
+        
+        const nozzleBaseX = w / 2 - 80 + (aimFactor * 20); // Left of center
+        const nozzleBaseY = h / 2 + 50; // Raised up slightly as hose is "held" up
 
         this.x = nozzleBaseX;
         this.y = nozzleBaseY;
         
-        // Target is the fire base
-        const targetX = w / 2 + (Math.random() - 0.5) * 50; 
-        const targetY = h / 2 - 20; // Fire base
+        // Target is the fire base + aim variance
+        const targetX = w / 2 + (aimFactor * 150); // Aim affects target X significantly
+        const targetY = h / 2 - 50; // Fire base
 
         const angle = Math.atan2(targetY - this.y, targetX - this.x);
-        const force = 18 + Math.random() * 4;
+        const force = 22 + Math.random() * 5; // Faster stream
 
         this.vx = Math.cos(angle) * force;
         this.vy = Math.sin(angle) * force;
         
-        this.gravity = 0.2;
+        this.gravity = 0.25;
         this.life = 1.0;
-        this.size = Math.random() * 8 + 5;
+        this.size = Math.random() * 10 + 6;
       }
 
       update() {
         this.x += this.vx;
         this.y += this.vy;
         this.vy += this.gravity;
-        this.life -= 0.02;
-        this.size += 0.5;
+        this.life -= 0.015;
+        this.size += 0.3;
         
         // Floor collision
-        if (this.y > canvas.height / 2 + 50) {
+        if (this.y > canvas.height / 2 + 100) {
             this.vy *= -0.5;
             this.vx *= 0.8;
         }
       }
 
       draw(c: CanvasRenderingContext2D) {
-        c.globalAlpha = this.life * 0.8;
-        c.fillStyle = '#E0F2FE'; 
+        c.globalAlpha = this.life * 0.9;
+        c.fillStyle = '#FFFFFF'; 
+        c.beginPath();
+        c.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        c.fill();
+        c.globalAlpha = 1.0;
+      }
+    }
+
+    class SteamParticle {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      life: number;
+      size: number;
+
+      constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 2;
+        this.vy = -Math.random() * 3 - 1;
+        this.life = 1.0;
+        this.size = Math.random() * 20 + 10;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= 0.03;
+        this.size += 1;
+      }
+
+      draw(c: CanvasRenderingContext2D) {
+        c.globalAlpha = this.life * 0.4;
+        c.fillStyle = '#888888';
         c.beginPath();
         c.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         c.fill();
@@ -133,6 +168,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 
     let fireParticles: FireParticle[] = [];
     let foamParticles: FoamParticle[] = [];
+    let steamParticles: SteamParticle[] = [];
     let animationId: number;
     let localFireHealth = 100;
 
@@ -141,7 +177,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 
       // 1. Spawn Fire
       if (localFireHealth > 0 && step !== SimulationStep.SUCCESS) {
-        const spawnRate = Math.floor((localFireHealth / 100) * 10) + 2;
+        const spawnRate = Math.floor((localFireHealth / 100) * 12) + 2;
         for (let i = 0; i < spawnRate; i++) {
           fireParticles.push(new FireParticle(canvas.width, canvas.height));
         }
@@ -149,7 +185,8 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
 
       // 2. Spawn Foam
       if (isSqueezing && localFireHealth > 0) {
-        for (let i = 0; i < 5; i++) {
+        // Increase emission rate for better visual
+        for (let i = 0; i < 8; i++) {
           foamParticles.push(new FoamParticle(canvas.width, canvas.height, aimX));
         }
       }
@@ -162,7 +199,15 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
         if (p.life <= 0) fireParticles.splice(i, 1);
       }
 
-      // 4. Draw Foam & Check Collision
+      // 4. Draw Steam (from collisions)
+      for (let i = steamParticles.length - 1; i >= 0; i--) {
+        const p = steamParticles[i];
+        p.update();
+        p.draw(ctx);
+        if (p.life <= 0) steamParticles.splice(i, 1);
+      }
+
+      // 5. Draw Foam & Check Collision
       let hitCount = 0;
       const fireCenterX = canvas.width / 2;
       const fireCenterY = canvas.height / 2; // Approximate fire core
@@ -172,26 +217,31 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
         p.update();
         p.draw(ctx);
         
-        // Simple circular collision with fire center area
+        // Collision with fire
         const dist = Math.hypot(p.x - fireCenterX, p.y - fireCenterY);
-        if (dist < 80 && p.life > 0.5) {
+        // Hit logic: Must be close to fire center
+        if (dist < 90 && p.life > 0.2) {
             hitCount++;
+            // Spawn steam occasionally
+            if (Math.random() > 0.9) {
+                steamParticles.push(new SteamParticle(p.x, p.y));
+            }
         }
 
         if (p.life <= 0) foamParticles.splice(i, 1);
       }
 
-      // 5. Logic
+      // 6. Logic
       // Only effective if aiming near center (where fire is)
-      const isAimingAtFire = Math.abs(aimX) < 0.3; 
+      const isAimingAtFire = Math.abs(aimX) < 0.4; // Slightly wider forgiving window
       
       if (hitCount > 0 && isSqueezing && isAimingAtFire) {
-         localFireHealth -= 0.5; 
+         localFireHealth -= 0.8; // Faster extinguishing if hitting
          if (localFireHealth < 0) localFireHealth = 0;
          setFireHealth(localFireHealth);
       } else if (localFireHealth < 100 && localFireHealth > 0 && !isSqueezing) {
-         // Fire grows back slowly if you stop
-         localFireHealth += 0.1;
+         // Fire grows back slowly
+         localFireHealth += 0.05;
          setFireHealth(localFireHealth);
       }
 
@@ -216,7 +266,7 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
       
       {/* Health Bar HUD */}
       {step !== SimulationStep.INTRO && step !== SimulationStep.SUCCESS && step !== SimulationStep.INSPECT && step !== SimulationStep.PULL && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 w-64 bg-black/60 rounded-full h-3 border border-white/20 backdrop-blur-sm overflow-hidden z-20">
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 w-64 bg-black/60 rounded-full h-3 border border-white/20 backdrop-blur-sm overflow-hidden z-20 transition-opacity duration-300">
            <div 
              className="h-full bg-gradient-to-r from-orange-500 to-red-600 transition-all duration-200"
              style={{ width: `${fireHealth}%` }}

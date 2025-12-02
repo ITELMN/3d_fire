@@ -13,19 +13,21 @@ const ExtinguisherModel: React.FC<ExtinguisherModelProps> = ({ aimX, isSqueezing
   const isInspect = step === SimulationStep.INSPECT;
   const isPull = step === SimulationStep.PULL;
   const isPinPulled = step !== SimulationStep.INTRO && step !== SimulationStep.INSPECT && step !== SimulationStep.PULL;
-  
+  const isAimingOrFiring = step === SimulationStep.AIM || step === SimulationStep.SQUEEZE || step === SimulationStep.SWEEP;
+
   // Base transforms
   // When aiming, we slightly rotate the model to simulate looking around the fire
-  const rotationY = aimX * 15; // Rotate left/right
-  const translateX = aimX * 30; // Move slightly
+  const rotationY = aimX * 10; // Rotate left/right
+  const translateX = aimX * 20; // Move slightly
 
   // Zoom transforms for specific steps
-  let containerTransform = `translate(-50%, -50%) perspective(1000px) rotateY(${rotationY}deg) translateX(${translateX}px)`;
+  // Reduce overall scale to 0.85 as requested ("can be smaller")
+  let containerTransform = `translate(-50%, -50%) perspective(1000px) scale(0.85) rotateY(${rotationY}deg) translateX(${translateX}px)`;
   
   if (isInspect) {
-    containerTransform = `translate(-50%, -30%) perspective(1000px) scale(2.5) translateY(50px)`;
+    containerTransform = `translate(-50%, -30%) perspective(1000px) scale(2.2) translateY(50px)`;
   } else if (isPull) {
-    containerTransform = `translate(-50%, -30%) perspective(1000px) scale(2.0) rotateY(-15deg) translateY(60px)`;
+    containerTransform = `translate(-50%, -30%) perspective(1000px) scale(1.8) rotateY(-15deg) translateY(60px)`;
   }
 
   return (
@@ -89,9 +91,19 @@ const ExtinguisherModel: React.FC<ExtinguisherModelProps> = ({ aimX, isSqueezing
       </div>
 
       {/* --- HOSE --- */}
-      {/* Using an SVG for the hose to get a nice curve */}
-      <div className="absolute bottom-[100px] left-[-40px] w-[140px] h-[300px] z-30 pointer-events-none">
-          <svg width="100%" height="100%" viewBox="0 0 100 200" preserveAspectRatio="none">
+      {/* 
+         ANIMATED HOSE:
+         When aiming/squeezing, rotate the hose container to make the nozzle point upwards/forwards
+         Pivot point is top-right of the hose container (where it connects to valve)
+      */}
+      <div 
+        className="absolute bottom-[100px] left-[-40px] w-[140px] h-[300px] z-30 transition-transform duration-500 ease-out"
+        style={{
+           transformOrigin: '85px 20px', // Near the connection point to valve
+           transform: isAimingOrFiring ? 'rotate(-65deg) translate(-20px, 10px)' : 'rotate(0deg)'
+        }}
+      >
+          <svg width="100%" height="100%" viewBox="0 0 100 200" preserveAspectRatio="none" className="drop-shadow-xl">
              <path 
                d="M 85 20 Q 20 50 10 200" 
                fill="none" 
